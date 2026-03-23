@@ -1,60 +1,39 @@
-import htmlPdf from 'html-pdf-node';
-// html-pdf-node é uma biblioteca que converte HTML em PDF usando o mecanismo do Chrome, garantindo alta qualidade e compatibilidade com CSS moderno
+import sharp from 'sharp';
+import multer from 'multer'; // mireware para lidar com uploads
 import fs from 'fs';
+import path from 'path';
 
-export async function gerarPdfAluno(aluno) {
-    let fotoHtml = '-';
+const UPLOADS_DIR = './uploads'; // pasta para armazenar
 
-    if (aluno.foto) {
-        const base64 = fs.readFileSync(aluno.foto).toString('base64');
-        // base64 é um formato de codificação que representa dados binários (como imagens) em texto
-        fotoHtml = `<img src="data:image/jpeg;base64,${base64}" width="120"/>`;
-        // data:image/jpeg;base64, é um formato de URL que permite incorporar diretamente a imagem codificada em base64 no HTML
-    }
-
-    const html = `
-    <html>
-    <body>
-        <h1>Relatório do Aluno</h1>
-
-        <p>Foto: ${fotoHtml}</p>
-        <p>Nome: ${aluno.nome}</p>
-        <p>Escola: ${aluno.escola || '-'}</p>
-        <p>Turma: ${aluno.turma || '-'}</p>
-    </body>
-    </html>
-    `;
-
-    return htmlPdf.generatePdf({ content: html }, { format: 'A4' });
+if (!fs.existsSync(UPLOADS_DIR)) // se não existir a pasta UPLOADS_DIR
+{
+    fs.mkdirSync(UPLOADS_DIR); // crie a pasta
 }
 
-export async function gerarPdfTodos(alunos) {
-    const linhas = alunos
-        .map(
-            (a) => `
-        <tr>
-            <td>${a.nome}</td>
-            <td>${a.escola || '-'}</td>
-            <td>${a.turma || '-'}</td>
-            <td>${a.foto || '-'}</td>
-        </tr>`,
-        )
-        .join('');
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR), // destino do arquivo - pasta criada acima
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        cb(null, `aluno_${req.params.id}_${Date.now()}${ext}`); // nomeando o arquivo pelo id e data
+    },
+});
 
-    const html = `
-    <h1 style="text-align: center;">Relatório de Alunos</h1>
+export const upload = multer({ storage });
 
-    <table border="1" cellspacing="0" cellpadding="8">
-        <tr>
-            <th>Nome</th>
-            <th>Escola</th>
-            <th>Turma</th>
-            <th>Foto</th>
-        </tr>
-        ${linhas}
-    </table>
-        <p>Total: ${alunos.length} alunos</p>
-    `;
+export async function processarFoto(filePath) {
+    const processado = await sharp(fs.readFileSync(filePath))
+        .resize({ width: 800, withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toBuffer();
 
-    return htmlPdf.generatePdf({ content: html }, { format: 'A4' });
+    // redmencionando a foto e acertando a qualidade
+
+    fs.writerFileSync(filePath, processado);
+    return filePath.replace(/\\/g, '/'); // se vier http://localhost:300\\ troque o \\ por '/'
+}
+
+export function removerFoto(filePath) {
+    if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
 }

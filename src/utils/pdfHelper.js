@@ -1,55 +1,58 @@
 import htmlPdf from 'html-pdf-node';
 import fs from 'fs';
-import { table } from 'console';
 
+//pdf de um aluno específico
 export async function gerarPdfAluno(aluno) {
-    let fotoHtml = 'Não tem foto!';
+    let fotoHtml = '-';
 
     if (aluno.foto) {
         const base64 = fs.readFileSync(aluno.foto).toString('base64');
         fotoHtml = `<img src="data:image/jpeg;base64, ${base64}" width="120"/>`;
-
     }
 
     const html = `
-    <html>
-        <body>
-            <h1>Relatório do aluno</h1>
+<html>
+    <body>
+        <h1>Relatório do Aluno</h1>
+        <p>Foto: ${fotoHtml}</p>
+        <p>Nome: ${aluno.nome}</p>
+        <p>Escola: ${aluno.escola} || '-' </p>
+        <p>Turma: ${aluno.turma}|| '-' </p>
+    </body>
+</html>`;
 
-                <p>Foto: ${fotoHtml}</p>
-                <p>Nome: ${aluno.nome}</p>
-                <p>Escola: ${aluno.escola || '-'}</p>
-                <p>Turma: ${aluno.turma || '-'}</p>
-        </body>
-    </html>`;
+    return htmlPdf.generatePdf({ content: html }, { format: 'A4' });
 }
-return htmlPdf.generatePdf({ content: html }, { format: 'A4' })
 
-
-export async function gerarPdfTodos(Alunos) {
-    const linhas = Alunos
+// Pdf geral de alunos
+export async function gerarPdfTodos(alunos) {
+    const linhas = alunos
         .map(
-             (a) => `
+            (a) => `
     <tr>
         <td>${a.nome}</td>
-        <td>${a.escola || '-'}</td>
-        <td>${a.turma || '-'}</td>
-        <td>${a.foto || '-'}</td>
+        <td>${a.escola} || '-'</td>
+        <td>${a.turma} || '-' </td>
+        <td>${a.foto} || '-' </td>
     </tr>`,
-    )
+        )
         .join('');
+
+    const html = `
+<h1 style"text-align:center;">Relatório de alunos</h1>
+
+<table border="1" cellspacing="0" cellspacing="8"
+>
+    <tr>
+        <th>Nome<th>
+        <th>Escola<th>
+        <th>Turma<th>
+        <th>Foto<th>
+    </tr>
+    ${linhas}
+</table>
+
+<p>Total: ${alunos.length} alunos</p>`;
+
+    return htmlPdf.generatePdf({ content: html }, { format: 'A4' });
 }
-
-const html = `
-<h1 style="text-align: cetnter";> Relatório de Alunos</h1>
-
-    < table border = "1" cellspacing = "0" cellspacing = "0" >
-        <tr>
-            <th>Nome</th>
-            <th>Escola</th>
-            <th>Turma</th>
-            <th>Foto</th>
-        </tr> ${linhas}
-    </table >
-        <p>Total: ${Alunos.length} alunos</p>
-`;
